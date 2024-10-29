@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <cstdlib>
 #include <ctime>
 #include <memory>
@@ -12,6 +13,7 @@ class LongInteger {
 public:
     string value;
     long int base = 10;
+    const double PI = acos(-1);
     vector<int> coefficients;
 
     LongInteger() {
@@ -83,13 +85,13 @@ public:
         }
         return LongInteger(res.erase(0, std::min(res.find_first_not_of('0'), res.size() - 1)));
     }
-    LongInteger operator==(const LongInteger& x) {
+    bool operator==(const LongInteger& x) {
         return value == x.value;
     }
-    LongInteger operator!=(const LongInteger& x) {
+    bool operator!=(const LongInteger& x) {
         return !(value == x.value);
     }
-    LongInteger& operator=(string x) {
+    LongInteger& operator=(LongInteger x) {
         *this = LongInteger(move(x));
         return *this;
     }
@@ -129,6 +131,62 @@ public:
         }
         return LongInteger(res.erase(0, std::min(res.find_first_not_of('0'), res.size() - 1)));
     }
+    LongInteger operator*(const LongInteger& other) const {
+        return LongInteger(katsarubaMethod(*this, other));
+    }
+
+    LongInteger operator*(int n) const {
+        return *this * LongInteger(to_string(n));
+    }
+    bool operator>(const LongInteger& other) {
+        if (value.size() != other.value.size()) {
+            return value.size() > other.value.size();
+        }
+        for (int i = int(value.size()) - 1; i >= 0; --i) {
+            if (value[i] > other.value[i]) {
+                return true;
+            } else if (value[i] < other.value[i]) {
+                return false;
+            }
+        }
+        return false;
+    }
+    bool operator<(const LongInteger& other) {
+        return !(operator>=(other));
+    }
+    bool operator<=(const LongInteger& other) {
+        return !(operator>(other));
+    }
+
+    bool operator>=(const LongInteger& other) {
+        return (operator>(other) || operator==(other));
+    }
+    LongInteger operator%(const LongInteger& other) const {
+        if (other.value == "0") {
+            return LongInteger("0");
+        }
+
+        LongInteger dividend(value);
+        LongInteger divisor(other.value);
+
+        bool negativeResult = (dividend.value[0] == '-' && divisor.value[0] != '-') || (dividend.value[0] != '-' && divisor.value[0] == '-');
+        dividend.value.erase(0, std::min(dividend.value.find_first_not_of('-'), dividend.value.size() - 1));
+        divisor.value.erase(0, std::min(divisor.value.find_first_not_of('-'), divisor.value.size() - 1));
+
+        LongInteger currentDividend;
+        for (size_t i = 0; i < dividend.value.size(); ++i) {
+            currentDividend = currentDividend * 10 + LongInteger(dividend.value[i] - '0');
+
+            while (currentDividend >= divisor) {
+                currentDividend = currentDividend - divisor;
+            }
+        }
+        if (negativeResult) {
+            currentDividend.value.insert(0, "-");
+        }
+
+        return currentDividend;
+    }
 
     friend istream& operator>>(istream& inp, LongInteger& num) {
         string input;
@@ -150,6 +208,25 @@ public:
             result.push_back(carry % 10 + '0');
             carry /= 10;
         }
+        reverse(result.begin(), result.end());
+        return result;
+    }
+    static string add(const string &num1, const string &num2) {
+        string result;
+        int carry = 0;
+        int i = num1.size() - 1, j = num2.size() - 1;
+
+        while (i >= 0 || j >= 0 || carry) {
+            int sum = carry;
+            if (i >= 0) sum += num1[i--] - '0';
+            if (j >= 0) sum += num2[j--] - '0';
+
+            carry = sum / 10;
+            sum %= 10;
+
+            result += to_string(sum);
+        }
+
         reverse(result.begin(), result.end());
         return result;
     }
@@ -183,13 +260,47 @@ public:
         }
         return result;
     }
-    static string shift(const string& num, long zeros) {
-        return num + string(zeros, '0');
+    string divide_by_int(int divisor) {
+        string result;
+        int carry = 0;
+
+        for (char digit : value) {
+            carry = carry * 10 + (digit - '0');
+            result.push_back((carry / divisor) + '0');
+            carry %= divisor;
+        }
+
+        // Видаляємо провідні нулі
+        result.erase(0, min(result.find_first_not_of('0'), result.size() - 1));
+
+        return result;
     }
-    static string multiplyByPowerOf10(string& num, long times) {
-        for (int k = 0; k < times; k++)
-            num.append("0");
-        return num;
+    static string mult(LongInteger num1, LongInteger num2) {
+        if (num2.value == "0") {
+            return 0;
+        }
+
+
+        LongInteger dividend(num1.value);
+        LongInteger divisor(num2.value);
+
+        bool negativeResult = (dividend.value[0] == '-' && divisor.value[0] != '-') || (dividend.value[0] != '-' && divisor.value[0] == '-');
+        dividend.value.erase(0, std::min(dividend.value.find_first_not_of('-'), dividend.value.size() - 1));
+        divisor.value.erase(0, std::min(divisor.value.find_first_not_of('-'), divisor.value.size() - 1));
+
+        LongInteger currentDividend;
+        for (size_t i = 0; i < dividend.value.size(); ++i) {
+            currentDividend = currentDividend * 10 + LongInteger(dividend.value[i] - '0');
+
+            while (currentDividend >= divisor) {
+                currentDividend = currentDividend - divisor;
+            }
+        }
+        if (negativeResult) {
+            currentDividend.value.insert(0, "-");
+        }
+
+        return currentDividend.value;
     }
     static void fillValues(string& num1, string& num2) {
         if (num1.length() < num2.length()) {
@@ -199,18 +310,19 @@ public:
         }
     }
 
-    static string katsarubaMethod(LongInteger& number1, LongInteger& number2)
+    static string katsarubaMethod(const LongInteger& number1, const LongInteger& number2)
     {
-        if (number1.value.length() == 1 && number2.value.length() == 1) {
-            long val1 = number1.value[0] - '0';
-            long val2 = number2.value[0] - '0';
+        LongInteger numb1 = number1, numb2 = number2;
+        if (numb1.value.length() == 1 && numb2.value.length() == 1) {
+            long val1 = numb1.value[0] - '0';
+            long val2 = numb2.value[0] - '0';
             return std::to_string(val1 * val2);
         }
 
-        long num_len = std::max(number1.value.size(), number2.value.size());
+        long num_len = max(numb1.value.size(), numb2.value.size());
         long half = num_len / 2;
 
-        string num1 = number1.value, num2 = number2.value;
+        string num1 = numb1.value, num2 = numb2.value;
 
         fillValues(num1, num2);
 
@@ -240,51 +352,44 @@ public:
 
         return result.value;
     }
-    static string toom_cook(LongInteger num1, LongInteger num2) {
+    static string toom_cook(string x, string y) {
+        string num1 = x, num2 = y;
+        fillValues(num1, num2);
+        int n = max(x.size(), y.size());
 
-        LongInteger res, a0, a1, a2, b0, b1, b2, m1, m2, m0, c1, c2, c3, m01, m02, m12;
-        long l = max(num1.value.length(), num2.value.length());
-
-        if (l == 1) {
-            return std::to_string((num1.value[0] - '0') * (num2.value[0] - '0'));
+        if (n <= 4) {
+            return to_string(stoll(num1) * stoll(num2));
         }
 
-        if (l % 3) {
-            l += 3 - l % 3;
-            while (num1.value.size() < l)
-                num1.value.insert(0, "0");
-            fillValues(num1.value, num2.value);
+        int m = (n + 2) / 3;
+
+        string x0 = num1.substr(0, num1.size() - m);
+        string x1 = num1.substr(num1.size() - m);
+        string y0 = num2.substr(0, num2.size() - m);
+        string y1 = num2.substr(num2.size() - m);
+
+        string z0 = toom_cook(x0, y0);
+        string z2 = toom_cook(x1, y1);
+        string z1 = toom_cook(add(x0, x1), add(y0, y1));
+        z1 = subtract_strings(z1, z0);
+        z1 = subtract_strings(z1, z2);
+
+        for (int i = 0; i < 2 * m; ++i) {
+            z0 += "0";
         }
 
-        a0 = num1.value.substr(0, l / 3);
-        a1 = num1.value.substr(l / 3, (l / 3 > num1.value.length() ? num1.value.length() - l / 3 : l / 3));
-        a2 = num1.value.substr(2 * l / 3, (2 * l / 3 > num1.value.length() ? num1.value.length() - 2 * l / 3 : l / 3));
-        b0 = num2.value.substr(0, l / 3);
-        b1 = num2.value.substr(l / 3, (l / 3 > num2.value.length() ? num2.value.length() - l / 3 : l / 3));
-        b2 = num2.value.substr(2 * l / 3, (2 * l / 3 > num2.value.length() ? num2.value.length() - 2 * l / 3 : l / 3));
+        for (int i = 0; i < m; ++i) {
+            z1 += "0";
+        }
 
+        string result = add(add(z0, z1), z2);
+        return result;
+    }
 
-        m0 = toom_cook(a0, b0);
-        m1 = toom_cook(a1, b1);
-        m2 = toom_cook(a2, b2);
-
-        c1 = toom_cook((a0 + a1), (b0 + b1));
-        c2 = toom_cook((a0 + a2), (b0 + b2));
-        c3 = toom_cook((a1 + a2), (b1 + b2));
-
-        m01 = c1 - m0 - m1;
-        m02 = c2 - m0 - m2;
-        m12 = c3 - m1 - m2;
-
-        m0 = multiplyByPowerOf10(m0.value, 4 * l / 3);
-        m01 = multiplyByPowerOf10(m01.value, 3 * l / 3);
-        m1 = multiplyByPowerOf10(m1.value, 2 * l / 3);
-        m02 = multiplyByPowerOf10(m02.value, 2 * l / 3);
-        m12 = multiplyByPowerOf10(m12.value, l / 3);
-
-        res = m0 + m1 + m2 + m01 + m02 + m12;
-
-        return res.value.erase(0, std::min(res.value.find_first_not_of('0'), res.value.size() - 1));
+    static string shenhage(LongInteger& number1, LongInteger& number2) {
+        LongInteger divid = LongInteger("123123123123123123123123123132312312312312312312312312312312312312312312312312312312312312312312311231239999999999999999999999999999999999999999999999999");
+        LongInteger res = LongInteger(katsarubaMethod(number1, number2)) % divid;
+        return res.value;
     }
 };
 
