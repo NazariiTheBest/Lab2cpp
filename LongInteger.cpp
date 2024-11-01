@@ -1,29 +1,26 @@
 #include <string>
+#include <iostream>
 #include <vector>
 #include <cstdlib>
 #include <algorithm>
 #include <cmath>
 #include <complex>
-#include <cstdlib>
-#include <ctime>
 #include <memory>
 using namespace std;
+typedef complex<double> complex_double;
 
 class LongInteger {
 public:
     string value;
     long int base = 10;
-    const double PI = acos(-1);
     vector<int> coefficients;
 
-    LongInteger() {
-        value = "0";
-    }
-    LongInteger(string x) {
-        value = x;
-    }
-    LongInteger(int x) {
-        value = to_string(x);
+    LongInteger() : value("0") {}
+    LongInteger(string x) : value(x) {}
+    LongInteger(int x) : value(to_string(x)) {}
+
+    static double PI() {
+        return acos(-1);
     }
 
     LongInteger operator+(const LongInteger& x) {
@@ -275,6 +272,15 @@ public:
 
         return result;
     }
+    static long long int modPow(long long int number, long long int degree) {
+        long long int result = 1;
+        while (degree > 0) {
+            if (degree % 2 == 1) result = (result * number);
+            number = (number * number);
+            degree /= 2;
+        }
+        return result;
+    }
     static string mult(LongInteger num1, LongInteger num2) {
         if (num2.value == "0") {
             return 0;
@@ -301,6 +307,36 @@ public:
         }
 
         return currentDividend.value;
+    }
+    static long long int gcd(long long int a, long long int b) {
+        if (b == 0) {
+            return a;
+        }
+        return gcd(b, a % b);
+    }
+
+    static long long int mod_power(long long int number, unsigned long long int degree, long long int modul) {
+        long long int res = 1;
+        number = number % modul;
+        while (degree > 0) {
+            if (degree & 1) {
+                res = (res * number) % modul;
+            }
+            degree = degree >> 1;
+            number = (number * number) % modul;
+        }
+        return res;
+    }
+    static void linear_congruent(long long int amount, double rand[]) {
+        int a = 74;
+        int c = 75;
+        long m = pow(2, 16) + 1;
+        static int x0 = 1;
+
+        for (int i = 0; i < amount; i++) {
+            x0 = (x0 * a + c) % m;
+            rand[i] = static_cast<double>(x0) / m;
+        }
     }
     static void fillValues(string& num1, string& num2) {
         if (num1.length() < num2.length()) {
@@ -385,13 +421,237 @@ public:
         string result = add(add(z0, z1), z2);
         return result;
     }
+    static void fft(vector<complex_double>& arr, bool invert) {
+        int n = arr.size();
+        if (n == 1) return;
 
-    static string shenhage(LongInteger& number1, LongInteger& number2) {
-        LongInteger divid = LongInteger("123123123123123123123123123132312312312312312312312312312312312312312312312312312312312312312312311231239999999999999999999999999999999999999999999999999");
-        LongInteger res = LongInteger(katsarubaMethod(number1, number2)) % divid;
-        return res.value;
+        vector<complex_double> even(n / 2), odd(n / 2);
+        for (int i = 0; 2 * i < n; i++) {
+            even[i] = arr[2 * i];
+            odd[i] = arr[2 * i + 1];
+        }
+
+        fft(even, invert);
+        fft(odd, invert);
+
+        double angle = 2 * PI() / n * (invert ? -1 : 1);
+        complex_double w(1.0, 0.0);
+        complex_double wn(cos(angle), sin(angle));
+        for (int i = 0; 2 * i < n; i++) {
+            arr[i] = even[i] + w * odd[i];
+            arr[i + n / 2] = even[i] - w * odd[i];
+            if (invert) {
+                arr[i] /= 2;
+                arr[i + n / 2] /= 2;
+            }
+            w *= wn;
+        }
+    }
+    static string ShonhageStrassen(const string& num1, const string& num2) {
+        vector<int> a(num1.size()), b(num2.size());
+
+        // Reverse and convert strings to integer arrays
+        for (int i = 0; i < num1.size(); i++)
+            a[i] = num1[num1.size() - 1 - i] - '0';
+        for (int i = 0; i < num2.size(); i++)
+            b[i] = num2[num2.size() - 1 - i] - '0';
+
+        int n = 1;
+        while (n < a.size() + b.size()) n <<= 1;
+        vector<complex_double> fa(a.begin(), a.end()), fb(b.begin(), b.end());
+        fa.resize(n);
+        fb.resize(n);
+
+        // Perform FFT on both arrays
+        fft(fa, false);
+        fft(fb, false);
+        for (int i = 0; i < n; i++) {
+            fa[i] *= fb[i];
+        }
+        fft(fa, true);
+
+        // Convert results back to integer format with carry handling
+        vector<int> result(n);
+        for (int i = 0; i < n; i++) {
+            result[i] = round(fa[i].real());
+        }
+
+        int carry = 0;
+        for (int i = 0; i < n; i++) {
+            result[i] += carry;
+            carry = result[i] / 10;
+            result[i] %= 10;
+        }
+        while (result.size() > 1 && result.back() == 0)
+            result.pop_back();
+
+        string product;
+        for (int i = result.size() - 1; i >= 0; i--)
+            product += to_string(result[i]);
+
+        return product;
+    }
+
+    static bool LamerTest(LongInteger& num1, long long int it) {
+        long long int n = stoll(num1.value);
+
+        // Basic checks for small values and divisibility by 2 or 3
+        if (n <= 3) return n > 1;
+        if (n % 2 == 0 || n % 3 == 0) return false;
+
+        long long int d = n - 1;
+        while (d % 2 == 0) d /= 2;
+
+        for (long long int i = 0; i < it; ++i) {
+            long long int a = 2 + rand() % (n - 3);
+            long long int x = mod_power(a, d, n);
+
+            if (x == 1 || x == n - 1) continue;
+
+            bool isComposite = true;
+            for (long long int j = 0; j < n - 1; ++j) {
+                x = (x * x) % n;
+
+                if (x == 1) return false;
+                if (x == n - 1) {
+                    isComposite = false;
+                    break;
+                }
+            }
+            if (isComposite) return false;
+        }
+        return true;
+    }
+    static void output_lamer(bool res) {
+        if (res) {
+            cout << "true";
+            return;
+        }
+        cout << "false";
+    }
+    static bool Miller_RabinTest(LongInteger& number, long long int it) {
+        long long num = stoll(number.value);
+        if (num <= 3) return num > 1;
+        if (num % 2 == 0 || num % 3 == 0) return false;
+
+        // Розкладання числа на вид n - 1 = 2^r * d
+        long long d = num - 1;
+        while (d % 2 == 0) {
+            d /= 2;
+        }
+
+        double rand[1];  // Зберігаємо лише одне значення для кожного виклику
+        for (int i = 0; i < it; ++i) {
+            // Генеруємо випадкове число та конвертуємо його до діапазону [2, num - 2]
+            linear_congruent(1, rand);
+            long long a = 2 + static_cast<long long>(rand[0] * (num - 4));
+
+            // Перевірка a^d % num з використанням степеневого зведення
+            long long x = mod_power(a, d, num);
+            if (x == 1 || x == num - 1) continue;
+
+            bool composite = true;
+            for (long long r = d; r < num - 1; r *= 2) {
+                x = (x * x) % num;
+                if (x == num - 1) {
+                    composite = false;
+                    break;
+                }
+            }
+            if (composite) return false;
+        }
+        return true;
+    }
+    static void output_Miller_RabinTest(bool res) {
+        if (res) {
+            cout << "true";
+            return;
+        }
+        cout << "false";
+    }
+    static int jacobi(LongInteger number1, LongInteger number2) {
+        long long num = stoll(number1.value);
+        if (number2 % 2 == 0) {
+            cerr << "n must be odd" << endl;
+            return 0;
+        }
+
+        int jacobi = 1;
+        if (num < 0) {
+            num = -num;
+            if (stoll(number2.value) % 4 == 3) {
+                jacobi = -jacobi;
+            }
+        }
+
+        while (num != 0) {
+            while (num % 2 == 0) {
+                num /= 2;
+                if (stoll(number2.value) % 8 == 3 || stoll(number2.value) % 8 == 5) {
+                    jacobi = -jacobi;
+                }
+            }
+            swap(number1, number2);
+            if (num % 4 == 3 && stoll(number2.value) % 4 == 3) {
+                jacobi = -jacobi;
+            }
+            num = num % stoll(number2.value);
+        }
+        return (number2 == LongInteger("1")) ? jacobi : 0;
+    }
+
+    static bool SolovayStrassen(LongInteger number, long long int it) {
+        if (number < LongInteger("2")) // Check if the number is less than 2
+            return false;
+        if (number != LongInteger("2") && number % LongInteger("2") == 0) // Check if the number is even
+            return false;
+
+        for (int i = 0; i < it; i++) {
+            double rand[1];
+            linear_congruent(1, rand);
+            LongInteger a = LongInteger("2") + LongInteger(to_string(static_cast<long long>(rand[0] * (stoll(number.value) - 4))));
+
+            int jacobian = jacobi(a, number);
+            LongInteger mod_exp_result = mod_power(stoll(a.value), (stoll(number.value) - 1) / 2, stoll(number.value));
+
+            // Ensure we check if jacobian is zero
+            if (jacobian == 0 || mod_exp_result != LongInteger(to_string((jacobian + stoll(number.value)) % stoll(number.value))))
+                return false;
+        }
+        return true; // Number is prime
+    }
+
+
+    static void output_Solovay_Strassen(bool res) {
+        if (res) {
+            cout << "true";
+        } else {
+            cout << "false";
+        }
+    }
+    static bool frobeniusTest(LongInteger number, long long int iterations = 5) {
+        if (stoll(number.value) <= 3) return stoll(number.value) > 1;
+        if (stoll(number.value) % 2 == 0 || stoll(number.value) % 3 == 0) return false;
+
+        LongInteger n_minus_1 = number - LongInteger("1");
+        LongInteger half_n_minus_1 = stoll(n_minus_1.value) / 2;
+
+        for (int i = 0; i < iterations; ++i) {
+            double rand[1];
+            linear_congruent(1, rand);
+            LongInteger a = LongInteger(to_string(2 + static_cast<int>(rand[0] * (stoll(number.value) - 3))));
+
+            LongInteger x = mod_power(stoll(a.value), stoll(half_n_minus_1.value), stoll(number.value));
+            if (x == LongInteger("1")) continue;
+            if (x != n_minus_1) return false;
+        }
+        return true;
+    }
+    static void output_frobenius(bool res) {
+        if (res) {
+            cout << "true";
+            return;
+        }
+        cout << "false";
     }
 };
-
-
-
