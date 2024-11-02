@@ -6,6 +6,7 @@
 #include <cmath>
 #include <complex>
 #include <memory>
+#include <random>
 using namespace std;
 typedef complex<double> complex_double;
 
@@ -134,6 +135,9 @@ public:
 
     LongInteger operator*(int n) const {
         return *this * LongInteger(to_string(n));
+    }
+    LongInteger operator/(const LongInteger& other) const {
+        return LongInteger(to_string(stoll(value) / stoll(other.value)));
     }
     bool operator>(const LongInteger& other) {
         if (value.size() != other.value.size()) {
@@ -327,6 +331,19 @@ public:
         }
         return res;
     }
+    static long long int linearCongruentialGenerator(long long int seed, long long int a, long long int c, long long int m) {
+        return (a * seed + c) % m;
+    }
+
+    static long long int randomInRange(long long int n) {
+        const long long int a = 48271;
+        const long long int c = 0;
+        const long long int m = 2147483647;
+
+        static long long int seed = time(nullptr);
+        seed = linearCongruentialGenerator(seed, a, c, m);
+        return 2 + (seed % (n - 2));
+    }
     static void linear_congruent(long long int amount, double rand[]) {
         int a = 74;
         int c = 75;
@@ -491,7 +508,21 @@ public:
 
         return product;
     }
+    static std::string inverseValue(const LongInteger& number, long long int precision) {
+        if (number.value == "0") return "0";
 
+        LongInteger z("1");  // Initial approximation
+        long long int k = 0;
+
+        while (z.value.length() < precision) {
+            LongInteger temp = z * number;
+            temp = LongInteger("2") - temp;  // Compute 2 - z * number
+            z = z * temp;  // Refine approximation: z = z * (2 - z * number)
+            k++;
+        }
+
+        return z.value.substr(0, precision);  // Return result to required precision
+    }
     static bool LamerTest(LongInteger& num1, long long int it) {
         long long int n = stoll(num1.value);
 
@@ -569,65 +600,51 @@ public:
         }
         cout << "false";
     }
-    static int jacobi(LongInteger number1, LongInteger number2) {
-        long long num = stoll(number1.value);
-        if (number2 % 2 == 0) {
-            cerr << "n must be odd" << endl;
-            return 0;
+    static long long int jacobi(long long int number, long long int a) {
+        if (number <= 0 || number % 2 == 0) return 0;
+        int j = 1;
+        if (a < 0) {
+            a = -a;
+            if (number % 4 == 3) j = -j;
         }
-
-        int jacobi = 1;
-        if (num < 0) {
-            num = -num;
-            if (stoll(number2.value) % 4 == 3) {
-                jacobi = -jacobi;
+        while (a != 0) {
+            while (a % 2 == 0) {
+                a /= 2;
+                if (number % 8 == 3 || number % 8 == 5) j = -j;
             }
+            swap(a, number);
+            if (a % 4 == 3 && number % 4 == 3) j = -j;
+            a %= number;
         }
+        return number == 1 ? j : 0;
+    }
+    static bool soloveyShtrassen(LongInteger number, long long int it) {
+        long long int num = stoll(number.value);
+        if (stoll(number.value) % 2 == 0 && number != 2) return false;
+        else if (number == 2) return true;
+        else if (number < 2) return false;
+        else {
+            for (long long int i = 0; i < it; ++i) {
+                long long int a = randomInRange(num);
+                long long int jac = jacobi(num, a);
+                long long int step_val = mod_power(a, (num - 1) / 2, num);
 
-        while (num != 0) {
-            while (num % 2 == 0) {
-                num /= 2;
-                if (stoll(number2.value) % 8 == 3 || stoll(number2.value) % 8 == 5) {
-                    jacobi = -jacobi;
+                if (jac == -1) {
+                    jac = num - 1;
+                }
+
+                if (step_val != jac) {
+                    return false;
                 }
             }
-            swap(number1, number2);
-            if (num % 4 == 3 && stoll(number2.value) % 4 == 3) {
-                jacobi = -jacobi;
-            }
-            num = num % stoll(number2.value);
+                return true;
         }
-        return (number2 == LongInteger("1")) ? jacobi : 0;
     }
-
-    static bool SolovayStrassen(LongInteger number, long long int it) {
-        if (number < LongInteger("2")) // Check if the number is less than 2
-            return false;
-        if (number != LongInteger("2") && number % LongInteger("2") == 0) // Check if the number is even
-            return false;
-
-        for (int i = 0; i < it; i++) {
-            double rand[1];
-            linear_congruent(1, rand);
-            LongInteger a = LongInteger("2") + LongInteger(to_string(static_cast<long long>(rand[0] * (stoll(number.value) - 4))));
-
-            int jacobian = jacobi(a, number);
-            LongInteger mod_exp_result = mod_power(stoll(a.value), (stoll(number.value) - 1) / 2, stoll(number.value));
-
-            // Ensure we check if jacobian is zero
-            if (jacobian == 0 || mod_exp_result != LongInteger(to_string((jacobian + stoll(number.value)) % stoll(number.value))))
-                return false;
-        }
-        return true; // Number is prime
-    }
-
-
     static void output_Solovay_Strassen(bool res) {
         if (res) {
             cout << "true";
-        } else {
-            cout << "false";
         }
+        else cout << "false";
     }
     static bool frobeniusTest(LongInteger number, long long int iterations = 5) {
         if (stoll(number.value) <= 3) return stoll(number.value) > 1;
