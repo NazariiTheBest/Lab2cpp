@@ -405,10 +405,11 @@ public:
 
         return result.value;
     }
-    static string toom_cook(string x, string y) {
-        string num1 = x, num2 = y;
+    static string toom_cook(const LongInteger& number1, const LongInteger& number2) {
+        string num1 = number1.value, num2 = number2.value;
+
         fillValues(num1, num2);
-        int n = max(x.size(), y.size());
+        int n = max(number1.value.size(), number2.value.size());
 
         if (n <= 4) {
             return to_string(stoll(num1) * stoll(num2));
@@ -464,7 +465,8 @@ public:
             w *= wn;
         }
     }
-    static string ShonhageStrassen(const string& num1, const string& num2) {
+    static string ShonhageStrassen(const LongInteger& number1, const LongInteger& number2) {
+        string num1 = number1.value, num2 = number2.value;
         vector<int> a(num1.size()), b(num2.size());
 
         // Reverse and convert strings to integer arrays
@@ -508,7 +510,7 @@ public:
 
         return product;
     }
-    static std::string inverseValue(const LongInteger& number, long long int precision) {
+    static string inverseValue(const LongInteger& number, long long int precision) {
         if (number.value == "0") return "0";
 
         LongInteger z("1");  // Initial approximation
@@ -553,13 +555,6 @@ public:
         }
         return true;
     }
-    static void output_lamer(bool res) {
-        if (res) {
-            cout << "true";
-            return;
-        }
-        cout << "false";
-    }
     static bool Miller_RabinTest(LongInteger& number, long long int it) {
         long long num = stoll(number.value);
         if (num <= 3) return num > 1;
@@ -570,7 +565,6 @@ public:
         while (d % 2 == 0) {
             d /= 2;
         }
-
         double rand[1];  // Зберігаємо лише одне значення для кожного виклику
         for (int i = 0; i < it; ++i) {
             // Генеруємо випадкове число та конвертуємо його до діапазону [2, num - 2]
@@ -592,13 +586,6 @@ public:
             if (composite) return false;
         }
         return true;
-    }
-    static void output_Miller_RabinTest(bool res) {
-        if (res) {
-            cout << "true";
-            return;
-        }
-        cout << "false";
     }
     static long long int jacobi(long long int number, long long int a) {
         if (number <= 0 || number % 2 == 0) return 0;
@@ -640,35 +627,30 @@ public:
                 return true;
         }
     }
-    static void output_Solovay_Strassen(bool res) {
-        if (res) {
-            cout << "true";
-        }
-        else cout << "false";
-    }
     static bool frobeniusTest(LongInteger number, long long int iterations = 5) {
         if (stoll(number.value) <= 3) return stoll(number.value) > 1;
         if (stoll(number.value) % 2 == 0 || stoll(number.value) % 3 == 0) return false;
+        else {
+            LongInteger n_minus_1 = number - LongInteger("1");
+            LongInteger half_n_minus_1 = stoll(n_minus_1.value) / 2;
 
-        LongInteger n_minus_1 = number - LongInteger("1");
-        LongInteger half_n_minus_1 = stoll(n_minus_1.value) / 2;
+            for (int i = 0; i < iterations; ++i) {
+                double rand[1];
+                linear_congruent(1, rand);
+                LongInteger a = LongInteger(to_string(2 + static_cast<int>(rand[0] * (stoll(number.value) - 3))));
 
-        for (int i = 0; i < iterations; ++i) {
-            double rand[1];
-            linear_congruent(1, rand);
-            LongInteger a = LongInteger(to_string(2 + static_cast<int>(rand[0] * (stoll(number.value) - 3))));
-
-            LongInteger x = mod_power(stoll(a.value), stoll(half_n_minus_1.value), stoll(number.value));
-            if (x == LongInteger("1")) continue;
-            if (x != n_minus_1) return false;
+                LongInteger x = mod_power(stoll(a.value), stoll(half_n_minus_1.value), stoll(number.value));
+                if (x == LongInteger("1")) continue;
+                if (x != n_minus_1) return false;
+            }
+            return true;
         }
-        return true;
     }
-    static void output_frobenius(bool res) {
+    static void output_prime(bool res) {
         if (res) {
-            cout << "true";
+            cout << "Is Value Prime: TRUE" << endl;
             return;
         }
-        cout << "false";
+        cout << "Is Value Prime: FALSE" << endl;
     }
 };
